@@ -3,13 +3,15 @@
 # opacity patches overlay each other using a combination of alpha and depth,
 # transparency _adds_ patch colours (black therefore appearing transparent),
 # and masked transparency blends patches using the alpha channel.
-render_method: "masked_transparency"
-num_patches: 100
+render_method: "masked_transparency_clipped"
+num_patches: 10
 # Colour transformations can be: "none", "RGB space", "HSV space"
 colour_transformations: "RGB space"
+high_res_multiplier: 32
+max_block_size_high_res: 4000
 
 # Number of training steps
-optim_steps: 10
+optim_steps: 1
 learning_rate: 0.1
 
 ### Load segmented patches
@@ -17,21 +19,26 @@ patch_set: "animals.npy"
 
 ### Resize image patches to low- and high-res.
 fixed_scale_patches: True
-fixed_scale_coeff: 0.5
+fixed_scale_coeff: 1.0
+
+### Affine transform settings
+# Translation bounds for X and Y.
+min_trans: -0.7
+max_trans: 0.7
 
 # Configure a background, e.g. uploaded picture or solid colour.
 background_url: ""
 # Background usage: Global: use image across whole image; Local: reuse same image for every tile
-background_use: "Global" 
+background_use: "Local"
 # Colour configuration for solid colour background
-background_red: 0
+background_red: 100
 background_green: 0
-background_blue: 0
+background_blue: 100
 
 # Enter a global description of the image, e.g. 'a photorealistic chicken'
 global_prompt: "a photorealistic chicken"
-global_tile_prompt: True
-tile_images: True
+global_tile_prompt: False
+tile_images: False
 tiles_wide: 2
 tiles_high: 3
 compositional_image: True

@@ -21,17 +21,17 @@
 # Collage-making class definitions
 
 import copy
+import cv2
+import math
+import numpy as np
 import pathlib
+import torch
 import yaml
 
-import cv2
-import numpy as np
-import torch
-
-import collage_generator
-import patches
-import training
-import video_utils
+from .collage_generator import PopulationCollage
+from .patches import get_segmented_data
+from . import training
+from . import video_utils
 
 
 class CollageMaker():
@@ -65,7 +65,6 @@ class CollageMaker():
         initial_search_size: int, initial random search size (1 means no search)
     """
     self._prompts = prompts
-    self._segmented_data = segmented_data
     self._background_image = background_image
     self._clip_model = clip_model
     self._file_basename = file_basename
@@ -111,7 +110,7 @@ class CollageMaker():
         use_augmentation=self._use_image_augmentations)
 
     # Create population of collage generators.
-    self._generator = collage_generator.PopulationCollage(
+    self._generator = PopulationCollage(
         config=config,
         device=self._device,
         is_high_res=False,
@@ -123,7 +122,7 @@ class CollageMaker():
     if self._initial_search_size > 1:
       print(f'\nInitial random search over {self._initial_search_size} individuals')
       for j in range(population_size):
-        generator_search = collage_generator.PopulationCollage(
+        generator_search = PopulationCollage(
             config=config,
             device=self._device,
             pop_size=self._initial_search_size,
@@ -202,9 +201,10 @@ class CollageMaker():
                       background_image_high_res,
                       gamma=1.0,
                       show=True,
-                      save=True):
+                      save=True,
+                      no_background=False):
     """Save and/or show a high res render using high-res patches."""
-    generator = collage_generator.PopulationCollage(
+    generator_cpu = PopulationCollage(
         config=self._config,
         device=self._device,
         is_high_res=True,
@@ -214,35 +214,38 @@ class CollageMaker():
     idx_best = np.argmin(self._losses_history[-1])
     lowest_loss = self._losses_history[-1][idx_best]
     print(f'Lowest loss: {lowest_loss} @ index {idx_best}: ')
-    generator.copy_from(self._generator, 0, idx_best)
-    # Show high res version given a generator
-    generator_cpu = copy.deepcopy(generator)
-    generator_cpu = generator_cpu.to('cpu')
-    generator_cpu.tensors_to('cpu')
+    generator_cpu.copy_from(self._generator, 0, idx_best)
 
-    params = {'gamma': gamma}
+    params = {'gamma': gamma,
+              'max_block_size_high_res': self._config.get(
+                  'max_block_size_high_res')}
+    if no_background:
+      params['no_background'] = True
     with torch.no_grad():
-      img_high_res = generator_cpu.forward(params)
+      img_high_res = generator_cpu.forward_high_res(params)
     img = img_high_res.detach().cpu().numpy()[0]
 
     img = np.clip(img, 0.0, 1.0)
     if save or show:
       # Swap Red with Blue
-      img = img[...,[2, 1, 0]]
+      if img.shape[2] == 4:
+        print('Image has alpha channel')
+        img = img[..., [2, 1, 0, 3]]
+      else:
+        img = img[..., [2, 1, 0]]
       img = np.clip(img, 0.0, 1.0) * 255
     if save:
-      image_filename = f"{self._output_dir}/{self._file_basename}.png"
+      if no_background:
+        image_filename = f"{self._output_dir}/{self._file_basename}_no_bkgd.png"
+      else:
+        image_filename = f"{self._output_dir}/{self._file_basename}.png"
       cv2.imwrite(image_filename, img)
     if show:
       video_utils.cv2_imshow(img)
 
-    all_patches = generator_cpu.coloured_patches.detach().cpu().numpy()
-    background_image = generator_cpu.background_image.detach().cpu().numpy()
-    all_arrays = {}
-    all_arrays["all_patches"] = all_patches
-    all_arrays["background_image"] = background_image
+    img = img[:, :, :3]
 
-    return img, all_arrays
+    return img
 
   def finish(self):
     """Finish video writing and save all other data."""
@@ -282,8 +285,6 @@ class CollageMaker():
 class CollageTiler():
   def __init__(self,
                prompts,
-               segmented_data,
-               segmented_data_high_res,
                fixed_background_image,
                clip_model,
                device,
@@ -291,8 +292,6 @@ class CollageTiler():
     """Creates a large collage by producing multiple interlaced collages.
     Args:
       prompts: list of prompts for the collage maker
-      segmented_data: patch data for collage maker to use during opmtimisation
-      segmented_data_high_res: high res patch data for final renders
       fixed_background_image: highest res background image
       clip_model: CLIP model
       device: CUDA device
@@ -306,8 +305,6 @@ class CollageTiler():
         torch_device: string, either cpu or cuda
     """
     self._prompts = prompts
-    self._segmented_data = segmented_data
-    self._segmented_data_high_res = segmented_data_high_res
     self._fixed_background_image = fixed_background_image
     self._clip_model = clip_model
     self._device = device
@@ -327,8 +324,8 @@ class CollageTiler():
     self._overlap = 1. / 3.
 
     # Size of bigger image
-    self._width = self._tile_width * self._tiles_wide
-    self._height = self._tile_height * self._tiles_high
+    self._width = int(((2 * self._tiles_wide + 1) * self._tile_width) / 3.)
+    self._height = int(((2 * self._tiles_high + 1) * self._tile_height) / 3.)
 
     self._high_res_tile_width = self._tile_width * self._high_res_multiplier
     self._high_res_tile_height = self._tile_height * self._high_res_multiplier
@@ -365,24 +362,32 @@ class CollageTiler():
                                     img_format="SCHW", stitch=False,
                                     show=self._config["gui"])
           prompts_x_y = self._prompts[self._y * self._tiles_wide + self._x]
+          segmented_data, self._segmented_data_high_res = (
+              get_segmented_data(self._config, self._x + self._y *
+                self._tiles_wide))
           self._collage_maker = CollageMaker(
               prompts=prompts_x_y,
-              segmented_data=self._segmented_data,
+              segmented_data=segmented_data,
               background_image=tile_bg,
               clip_model=self._clip_model,
               file_basename=self._tile_basename.format(self._y, self._x, ""),
               device=self._device,
               config=self._config)
         self._collage_maker.loop()
-        collage_img, all_arrays = self._collage_maker.high_res_render(
+        collage_img = self._collage_maker.high_res_render(
             self._segmented_data_high_res,
             self._tile_high_res_bg,
             gamma=1.0,
             show=self._config["gui"],
             save=True)
+        self._collage_maker.high_res_render(
+            self._segmented_data_high_res,
+            self._tile_high_res_bg,
+            gamma=1.0,
+            show=False,
+            save=True,
+            no_background=True)
         self._save_tile(collage_img / 255)
-        if self._config["save_all_arrays"]:
-          self._save_tile_arrays(all_arrays)
 
         (last_step, last_loss) = self._collage_maker.finish()
         res_training[f"tile_{self._y}_{self._x}_loss"] = last_loss
@@ -443,9 +448,11 @@ class CollageTiler():
         #orgin_y = self._y * self._high_res_tile_height - int(
         #    self._high_res_tile_height * 2 * self._overlap)
         orgin_y = self._y * (self._high_res_tile_height
-                             - int(self._high_res_tile_height * self._overlap))
+                             - math.ceil(self._tile_height * self._overlap)
+                             * self._high_res_multiplier)
         orgin_x = self._x * (self._high_res_tile_width
-                             - int(self._high_res_tile_width * self._overlap))
+                             - math.ceil(self._tile_width * self._overlap)
+                             * self._high_res_multiplier)
         #orgin_x = self._x * self._high_res_tile_width - int(
         #    self._high_res_tile_width * 2 * self._overlap)
         tile_border_bg = self._fixed_background[
