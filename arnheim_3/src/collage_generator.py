@@ -103,7 +103,7 @@ class PopulationCollage(torch.nn.Module):
 
     if population_idx is not None and self.patches is not None:
       list_indices_population = [population_idx]
-      print(f'Reload {NUM_PATCHES} image patches for [{population_idx}]')
+      #print(f'Reload {NUM_PATCHES} image patches for [{population_idx}]')
       self.patches[population_idx, :, :4, :, :] = 0
     else:
       list_indices_population = np.arange(self._pop_size)
@@ -135,7 +135,7 @@ class PopulationCollage(torch.nn.Module):
           5,
           self._canvas_height * self._high_res_multiplier,
           self._canvas_width * self._high_res_multiplier
-          ).to('cpu')
+          ).to(self.device)
     else:
       w0 = int((self._canvas_width - width_j) / 2.0)
       h0 = int((self._canvas_height - height_j) / 2.0)

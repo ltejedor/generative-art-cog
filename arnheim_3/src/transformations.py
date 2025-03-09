@@ -31,7 +31,7 @@ class PopulationAffineTransforms(torch.nn.Module):
   """Population-based Affine Transform network."""
 
   def __init__(self, config, device, num_patches=1, pop_size=1,
-               requires_grad=True, is_high_res=False):
+               requires_grad=True, is_high_res=False, initial_positions=None):
     super(PopulationAffineTransforms, self).__init__()
 
     self.config = config

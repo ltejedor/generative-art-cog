@@ -165,7 +165,7 @@ def create_compositional_batch(images, augment_trans, text_features):
     # text_features should already be 10 in size.
     raise ValueError(
         "10 text prompts required for compositional image creation")
-  resize_for_clip = transforms.Compose([transforms.Scale((224,224))])
+  resize_for_clip = transforms.Compose([transforms.Resize((224,224))])
   img_swap = torch.swapaxes(images, 3, 1)
   ims = []
   i = 0
@@ -219,38 +219,46 @@ def evaluation(t, clip_enc, generator, augment_trans, text_features,
 
   # Create images for different regions
   pop_size = img.shape[0]
-  if config["compositional_image"]:
-    (img_batch, num_augs, text_features, loss_weights
-     ) = create_compositional_batch(img, augment_trans, text_features)
-  else:
-    (img_batch, num_augs, text_features, loss_weights
-     ) = create_augmented_batch(img, augment_trans, text_features, config)
-  losses = torch.zeros(pop_size, num_augs).to(device)
 
-  # Compute and add losses after augmenting the image with transforms.
-  img_batch = torch.clip(img_batch, 0, 1)  # clip the images.
-  image_features = clip_enc.encode_image(img_batch)
-  count = 0
-  for n in range(num_augs):  # number of augmentations or composition images
-    for p in range(pop_size):
-      loss = torch.cosine_similarity(
-          text_features[n], image_features[count:count+1], dim=1
-          )[0] * loss_weights[n]
-      losses[p, n] -= loss
-      if VISUALISE_BATCH_IMAGES and t % 500 == 0:
-        # Show all the images in the batch along with their losses.
-        if config["compositional_image"]:
-          print(f"Loss {loss} for image region with prompt {prompts[n]}:")
-        else:
-          print(f"Loss {loss} for image augmentation with prompt {prompts[0]}:")
-        show_and_save(img_batch[count].unsqueeze(0), config,
-            img_format="SCHW", show=config["gui"])
-      count += 1
-  loss = torch.sum(losses) / pop_size
-  losses_separate_np = losses.detach().cpu().numpy()
-  # Sum losses for all each population individual.
-  losses_individuals_np = losses_separate_np.sum(axis=1)
-  return loss, losses_separate_np, losses_individuals_np, img_np
+  target_image = config["target_image"]
+
+  #MSE Loss
+  if config["loss"] == "MSE":
+    return "hi"
+  else:  
+
+    if config["compositional_image"]:
+      (img_batch, num_augs, text_features, loss_weights
+      ) = create_compositional_batch(img, augment_trans, text_features)
+    else:
+      (img_batch, num_augs, text_features, loss_weights
+      ) = create_augmented_batch(img, augment_trans, text_features, config)
+    losses = torch.zeros(pop_size, num_augs).to(device)
+
+    # Compute and add losses after augmenting the image with transforms.
+    img_batch = torch.clip(img_batch, 0, 1)  # clip the images.
+    image_features = clip_enc.encode_image(img_batch)
+    count = 0
+    for n in range(num_augs):  # number of augmentations or composition images
+      for p in range(pop_size):
+        loss = torch.cosine_similarity(
+            text_features[n], image_features[count:count+1], dim=1
+            )[0] * loss_weights[n]
+        losses[p, n] -= loss
+        if VISUALISE_BATCH_IMAGES and t % 500 == 0:
+          # Show all the images in the batch along with their losses.
+          if config["compositional_image"]:
+            print(f"Loss {loss} for image region with prompt {prompts[n]}:")
+          else:
+            print(f"Loss {loss} for image augmentation with prompt {prompts[0]}:")
+          show_and_save(img_batch[count].unsqueeze(0), config,
+              img_format="SCHW", show=config["gui"])
+        count += 1
+    loss = torch.sum(losses) / pop_size
+    losses_separate_np = losses.detach().cpu().numpy()
+    # Sum losses for all each population individual.
+    losses_individuals_np = losses_separate_np.sum(axis=1)
+    return loss, losses_separate_np, losses_individuals_np, img_np
 
 
 def step_optimization(t, clip_enc, lr_scheduler, generator, augment_trans,

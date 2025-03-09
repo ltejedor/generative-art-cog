@@ -1,0 +1,25 @@
+# cog.yaml
+build:
+  # Set to true if your model (or PyTorch build) needs a GPU
+  gpu: true
+
+  python_version: "3.11.6"
+
+  python_packages:
+    - "torch"
+    - "configargparse"
+    - "kornia"
+    - "ftfy"
+    - "regex"
+    - "opencv-python"
+    - "visdom"
+    - "torch-tools"
+    - "git+https://github.com/openai/CLIP.git"
+
+  # Install needed Ubuntu packages
+  system_packages:
+    - ffmpeg
+    - libsm6
+    - libxext6
+
+predict: "predict.py:Predictor"

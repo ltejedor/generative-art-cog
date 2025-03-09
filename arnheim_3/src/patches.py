@@ -51,7 +51,7 @@ def resize_patch(patch, coeff):
 def print_size_segmented_data(segmented_data, show=True):
   size_max = 0
   shape_max = None
-  size_min = np.infty
+  size_min = np.inf
   shape_min = None
   ws = []
   hs = []
@@ -94,10 +94,11 @@ def get_segmented_data_initial(config):
   if len(config["url_to_patch_file"]) > 0:
     segmented_data_initial = cached_url_download(config["url_to_patch_file"])
   else:
-    repo_file = config["patch_set"]
-    repo_root = config["patch_repo_root"]
+    #repo_file = config["patch_set"]
+    #repo_root = config["patch_repo_root"]
     segmented_data_initial = cached_url_download(
-        f"{repo_root}/collage_patches/{repo_file}")
+        config["patch_url"]
+        )
 
   segmented_data_initial_tmp = []
   for i in range(len(segmented_data_initial)):

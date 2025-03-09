@@ -193,6 +193,8 @@ class CollageMaker():
           and self._step % self._evolution_frequency == 0):
         training.population_evolution_step(
             self._generator, self._config, losses)
+        
+      yield self._step
       self._step += 1
 
 
@@ -373,7 +375,10 @@ class CollageTiler():
               file_basename=self._tile_basename.format(self._y, self._x, ""),
               device=self._device,
               config=self._config)
-        self._collage_maker.loop()
+        for step in self._collage_maker.loop():
+          print(step)
+          yield(step)
+        #self._collage_maker.loop()
         collage_img = self._collage_maker.high_res_render(
             self._segmented_data_high_res,
             self._tile_high_res_bg,
@@ -510,7 +515,8 @@ class CollageTiler():
       target[0 : pixel_overlap, big_width - pixel_overlap : big_width, :] = source[
           big_height - pixel_overlap : big_height, 0 : pixel_overlap, :]
 
-  def assemble_tiles(self):
+  #saving as an .npy file
+  def assemble_tiles(self, filename="final_tiled_image"):
     # Stitch together the whole image.
     big_height = self._high_res_tile_height
     big_width = self._high_res_tile_width
@@ -526,8 +532,8 @@ class CollageTiler():
         x_offset = int(big_width * x * 2 / 3)
         full_image[y_offset : y_offset + big_height,
                    x_offset : x_offset + big_width, :] = tile[:, :, :]
-    filename = f"final_tiled_image"
     print(f"Saving assembled tiles to {filename}")
     video_utils.show_and_save(full_image, self._config,
         img_format="SHWC", stitch=False,
         filename=filename, show=self._config["gui"])
+

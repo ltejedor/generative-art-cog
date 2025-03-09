@@ -219,6 +219,9 @@ ap.add_argument("--patch_set", type=str, default="animals.npy",
 ap.add_argument("--patch_repo_root", type=str,
                 default="https://github.com/deepmind/arnheim/raw/main",
                 help="URL to patches")
+ap.add_argument("--patch_url", type=str,
+                default="https://github.com/deepmind/arnheim/raw/main",
+                help="Full URL to patches")
 ap.add_argument("--url_to_patch_file", type=str, default="",
                 help="URL to a patch file")
 
