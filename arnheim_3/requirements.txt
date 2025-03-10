@@ -6,3 +6,4 @@ opencv-python
 visdom
 torch
 torch-tools
+open_clip_torch

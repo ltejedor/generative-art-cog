@@ -222,9 +222,104 @@ def evaluation(t, clip_enc, generator, augment_trans, text_features,
 
   target_image = config["target_image"]
 
+  # Multi-region MSE Loss
+  if config["loss"] == "Multi-region MSE":
+      if not isinstance(target_image, torch.Tensor):
+          target_image = torch.tensor(target_image).to(device)
+      if target_image.shape[-1] == 3:  # Convert NHWC to NCHW if necessary
+          target_image = target_image.permute(0, 3, 1, 2)
+
+      # Resize target if it does not match generator output size
+      if target_image.shape[2:] != img.shape[1:3]:
+          target_image = torch.nn.functional.interpolate(
+              target_image, size=(img.shape[1], img.shape[2]), 
+              mode='bilinear', align_corners=False)
+      
+      losses = torch.zeros(pop_size).to(device)
+      for p in range(pop_size):
+          img_p = img[p]
+          if img_p.shape[-1] == 3:  # Convert NHWC to NCHW
+              img_p = img_p.permute(2, 0, 1).unsqueeze(0)
+          
+          # Compute MSE loss for the full target image
+          mse_loss_full = torch.nn.functional.mse_loss(img_p[:, :3, :, :], target_image[:, :3, :, :])
+          
+          # Define three smaller regions on the right side
+          h, w = target_image.shape[2:]
+          regions = [
+              (w // 4, h // 4, 3 * w // 4, 3 * h // 4),  # Central region
+              (w // 2, h // 4, w, 3 * h // 4),  # Right center
+              (w // 2, h // 2, w, h)  # Bottom right
+          ]
+          
+          mse_loss_regions = 0
+          for x1, y1, x2, y2 in regions:
+              mse_loss_regions += torch.nn.functional.mse_loss(
+                  img_p[:, :3, y1:y2, x1:x2], target_image[:, :3, y1:y2, x1:x2]
+              )
+          
+          # Combine the losses with a weighted sum
+          losses[p] = mse_loss_full + 0.5 * mse_loss_regions
+
+      losses_separate_np = losses.unsqueeze(1).detach().cpu().numpy()
+      losses_individuals_np = losses.detach().cpu().numpy()
+      loss = torch.sum(losses) / pop_size
+      return loss, losses_separate_np, losses_individuals_np, img_np
+
   #MSE Loss
   if config["loss"] == "MSE":
-    return "hi"
+        # Ensure target image is a torch tensor on the correct device
+    if not isinstance(target_image, torch.Tensor):
+        target_image = torch.tensor(target_image).to(device)
+    if target_image.shape[-1] == 3:  # If NHWC format
+        target_image = target_image.permute(0, 3, 1, 2)  # Convert to NCHW
+        
+    # Resize target to match generator output if needed
+    if target_image.shape[2:] != img.shape[1:3]:  # Check height, width
+        target_image = torch.nn.functional.interpolate(
+            target_image, size=(img.shape[1], img.shape[2]), 
+            mode='bilinear', align_corners=False)
+    
+    # Calculate MSE loss for each population member
+    losses = torch.zeros(pop_size).to(device)
+    for p in range(pop_size):
+        # Convert to NCHW format if needed
+        img_p = img[p]
+        if img_p.shape[-1] == 3:  # If NHWC format
+            img_p = img_p.permute(2, 0, 1)  # Convert to CHW
+            img_p = img_p.unsqueeze(0)  # Add batch dimension -> NCHW
+        
+        # Calculate MSE loss
+        mse_loss = torch.nn.functional.mse_loss(img_p[:,:3,:,:], target_image[:,:3,:,:])
+        losses[p] = mse_loss
+        
+    # Create a compatible losses_separate_np structure for consistency
+    losses_separate_np = losses.unsqueeze(1).detach().cpu().numpy()
+    losses_individuals_np = losses.detach().cpu().numpy()
+    loss = torch.sum(losses) / pop_size
+    return loss, losses_separate_np, losses_individuals_np, img_np
+    
+  # MSE Loss combining two images
+  elif config["loss"] == "MSE" and config["target_image2"] is not None:
+    target_image1 = config["target_image"]
+    target_image2 = config["target_image2"]
+    blend_ratio = config["blend_ratio"]
+    # Calculate weighted MSE loss for each population member
+    losses = torch.zeros(pop_size).to(device)
+    for p in range(pop_size):
+        img_p = img[p]
+        if img_p.shape[-1] == 3:  # If NHWC format
+            img_p = img_p.permute(2, 0, 1)  # Convert to CHW
+            img_p = img_p.unsqueeze(0)  # Add batch dimension -> NCHW
+        
+        # Calculate MSE loss against first image
+        mse_loss1 = torch.nn.functional.mse_loss(img_p[:,:3,:,:], target_image1[:,:3,:,:])
+        
+        # Calculate MSE loss against second image
+        mse_loss2 = torch.nn.functional.mse_loss(img_p[:,:3,:,:], target_image2[:,:3,:,:])
+        
+        # Weighted combination of losses
+        losses[p] = (1.0 - blend_ratio) * mse_loss1 + blend_ratio * mse_loss2
   else:  
 
     if config["compositional_image"]:
