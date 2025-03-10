@@ -29,6 +29,7 @@ import torchvision.transforms as transforms
 
 import clip
 
+import torch.optim as optim
 from .video_utils import show_and_save
 
 
@@ -97,29 +98,34 @@ def make_optimizer(generator, learning_rate):
     optimizer
   """
 
+  """Make AdamW optimizer for generator's parameters."""
   my_list = ['positions_top']
-  params = list(map(lambda x: x[1],list(filter(lambda kv: kv[0] in my_list,
-                                               generator.named_parameters()))))
-  base_params = list(map(lambda x: x[1],list(filter(lambda kv: kv[0] not in
-                                      my_list, generator.named_parameters()))))
-  lr_scheduler = torch.optim.SGD([{'params': base_params},
-                                  {'params': params, 'lr': learning_rate}],
-                                    lr=learning_rate)
-  return lr_scheduler
+  params = list(map(lambda x: x[1], list(filter(lambda kv: kv[0] in my_list,
+                                                generator.named_parameters()))))
+  base_params = list(map(lambda x: x[1], list(filter(lambda kv: kv[0] not in my_list,
+                                                     generator.named_parameters()))))
+  optimizer = optim.AdamW([
+      {'params': base_params},
+      {'params': params, 'lr': learning_rate}
+  ], lr=learning_rate, weight_decay=weight_decay)
+  return optimizer
 
 
-def compute_text_features(prompts, clip_model, device):
-  """Compute CLIP features for all prompts."""
-
-  text_inputs = []
-  for prompt in prompts:
-    text_inputs.append(clip.tokenize(prompt).to(device))
-
-  features = []
-  with torch.no_grad():
-    for text_input in text_inputs:
-      features.append(clip_model.encode_text(text_input))
-  return features
+def compute_text_features(prompts, clip_model, tokenizer, device):
+    """Compute Open CLIP features for all prompts."""
+    features = []
+    
+    for prompt in prompts:
+        # Tokenize text using Open CLIP tokenizer
+        text_tokens = tokenizer([prompt]).to(device)
+        
+        # Encode text with the model
+        with torch.no_grad():
+            text_features = clip_model.encode_text(text_tokens)
+            text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+            features.append(text_features)
+    
+    return features
 
 
 def create_augmented_batch(images, augment_trans, text_features, config):
@@ -332,7 +338,12 @@ def evaluation(t, clip_enc, generator, augment_trans, text_features,
 
     # Compute and add losses after augmenting the image with transforms.
     img_batch = torch.clip(img_batch, 0, 1)  # clip the images.
-    image_features = clip_enc.encode_image(img_batch)
+
+    # With:
+    with torch.no_grad():
+        image_features = clip_enc.encode_image(img_batch)
+        image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+    
     count = 0
     for n in range(num_augs):  # number of augmentations or composition images
       for p in range(pop_size):

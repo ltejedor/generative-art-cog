@@ -6,7 +6,7 @@ import glob
 import pathlib
 import numpy as np
 import torch
-import clip
+import open_clip_torch
 import src.collage as collage
 import src.video_utils as video_utils
 from PIL import Image
@@ -17,7 +17,15 @@ class Predictor(BasePredictor):
     def setup(self):
         # Any heavy one-time setup can be done here
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.clip_model, _ = clip.load("ViT-B/32", self.device, jit=False)
+        # Load the ViT-H/14-quickgelu model from Open CLIP
+        self.clip_model, _, self.preprocess = open_clip_torch.create_model_and_transforms(
+            model_name="ViT-H-14-quickgelu", 
+            pretrained="dfn5b",  # DFN variant
+            device=self.device
+        )
+        
+        # Load the tokenizer
+        self.tokenizer = open_clip_torch.get_tokenizer("ViT-H-14-quickgelu")
 
     def predict(
         self,
