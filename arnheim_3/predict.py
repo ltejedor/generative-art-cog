@@ -54,21 +54,13 @@ class Predictor(BasePredictor):
             description="Number of optimization steps to run during collage generation."
         ),
         loss: str = Input(
-            choices=["CLIP", "MSE", "Multi-region MSE"],
+            choices=["CLIP", "MSE"],
             default="CLIP",
-            description="Loss function to optimize the collage. Choose between CLIP and MSE."
+            description="Loss function to optimize the collage. Choose between CLIP and MSE. If MSE is selected, the prompt won't affect the image and target_image is required."
         ),
         target_image: Path = Input(
             default=None,
             description="Upload an image file for MSE loss. Required if loss is set to MSE."
-        ),
-        target_image2: Path = Input(
-            default=None, 
-            description="Second target image for MSE loss."
-        ),
-        blend_ratio: float = Input(
-            default=0.5,
-            description="Blending ratio between target images (0.0 = only first image, 1.0 = only second image)."
         )
     ) -> Path:
         # Create a temporary output directory
@@ -101,27 +93,6 @@ class Predictor(BasePredictor):
             
             # Convert to the format expected by the code
             target_image = target_tensor.to(self.device)
-
-        if target_image2:
-            # Process target image
-            from PIL import Image
-            import torchvision.transforms as transforms
-            
-            # Open the image
-            img2 = Image.open(target_image2).convert('RGB')
-            
-            # Create a transform that resizes and crops to 224×224
-            transform = transforms.Compose([
-                transforms.Resize(256),  # Resize the shorter side to 256
-                transforms.CenterCrop(224),  # Center crop to 224×224
-                transforms.ToTensor(),  # Convert to tensor and normalize to [0, 1]
-            ])
-            
-            # Apply transformations
-            target_tensor2 = transform(img2).unsqueeze(0)  # Add batch dimension
-            
-            # Convert to the format expected by the code
-            target_image2 = target_tensor2.to(self.device)
         
         # Hard-coded configuration values based on config_compositional.yaml,
         # with prompt and optim_steps now provided by the input parameters.
@@ -129,9 +100,7 @@ class Predictor(BasePredictor):
             "output_dir": output_dir,
             "loss": loss,
             "initial_positions": initial_positions,
-            "blend_ratio": blend_ratio,
             "target_image": target_image,
-            "target_image2": target_image2,
             "render_method": "transparency",
             "num_patches": num_patches,
             "colour_transformations": "RGB space",
