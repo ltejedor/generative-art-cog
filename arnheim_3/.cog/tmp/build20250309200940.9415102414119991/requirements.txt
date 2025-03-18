@@ -1,0 +1,10 @@
+torch
+configargparse
+kornia
+ftfy
+regex
+opencv-python
+visdom
+torch-tools
+git+https://github.com/openai/CLIP.git
+open_clip_torch

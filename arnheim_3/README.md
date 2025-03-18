@@ -1,5 +1,11 @@
 # Generative Art Using Neural Visual Grammars and Dual Encoders
 
+Fork for a Replicate COG.
+
+Other changes include: 
+- Replacing the SGD Optimizer with Adam W Optimizer
+- Adding MSE (Image fitting) functionality
+
 ## Arnheim 3 (Command line version)
 
 A spatial transformer-based Arnheim implementation for generating collage images.

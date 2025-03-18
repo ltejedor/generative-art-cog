@@ -6,11 +6,12 @@ import glob
 import pathlib
 import numpy as np
 import torch
-import open_clip_torch
+import clip
 import src.collage as collage
 import src.video_utils as video_utils
 from PIL import Image
 import torchvision.transforms as transforms
+from typing import List, Union
 
 
 class Predictor(BasePredictor):
@@ -18,14 +19,8 @@ class Predictor(BasePredictor):
         # Any heavy one-time setup can be done here
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # Load the ViT-H/14-quickgelu model from Open CLIP
-        self.clip_model, _, self.preprocess = open_clip_torch.create_model_and_transforms(
-            model_name="ViT-H-14-quickgelu", 
-            pretrained="dfn5b",  # DFN variant
-            device=self.device
-        )
+        self.clip_model, _ = clip.load("ViT-B/32", self.device, jit=False)
         
-        # Load the tokenizer
-        self.tokenizer = open_clip_torch.get_tokenizer("ViT-H-14-quickgelu")
 
     def predict(
         self,
@@ -41,7 +36,16 @@ class Predictor(BasePredictor):
             default=100,
             description="Number of images to start with"
         ),
-        initial_positions: list[list[float]] = Input(
+        background_red: int = Input(
+            default=0
+        ),
+        background_green: int = Input(
+            default=0
+        ),
+        background_blue: int = Input(
+            default=0
+        ),
+        initial_positions: List[List[Union[str, float]]] = Input(
             default=[],
             description="List of lists representing the initial positions of patches."
         ),
@@ -73,6 +77,9 @@ class Predictor(BasePredictor):
 
         # Ensure ffmpeg is available
         os.environ["FFMPEG_BINARY"] = "ffmpeg"
+
+        print("initial positions")
+        print(initial_positions)
 
         if target_image:
             # Process target image
@@ -121,6 +128,7 @@ class Predictor(BasePredictor):
         config = {
             "output_dir": output_dir,
             "loss": loss,
+            "initial_positions": initial_positions,
             "blend_ratio": blend_ratio,
             "target_image": target_image,
             "target_image2": target_image2,
@@ -132,9 +140,9 @@ class Predictor(BasePredictor):
             "patch_set": "animals.npy",
             "fixed_scale_patches": True,
             "fixed_scale_coeff": 0.5,
-            "background_red": 0,
-            "background_green": 0,
-            "background_blue": 0,
+            "background_red": background_red,
+            "background_green": background_green,
+            "background_blue": background_blue,
             "patch_url": patch_url,
             "global_prompt": prompt,  # Use the input value
             "compositional_image": True,
