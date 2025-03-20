@@ -147,7 +147,8 @@ def get_segmented_data(config, index):
 
   # Permute the order of the segmented images.
   num_patches = len(segmented_data_initial)
-  order = np.random.permutation(num_patches)
+  #order = np.random.permutation(num_patches)
+  order = np.arange(num_patches) #temporarily get rid of image-order randomness for simple matching on the front-end
 
   # Compress all images until they are at most 1/PATCH_MAX_PROPORTION of the
   # large canvas size.

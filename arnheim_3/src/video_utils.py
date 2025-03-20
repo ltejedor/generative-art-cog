@@ -90,7 +90,7 @@ def show_and_save(img_batch, config, t=None,
         if img.shape[1] > config['canvas_width']:
           filename = "highres_" + filename
         output_dir = config["output_dir"]
-        filename = f"{output_dir}/{filename}_{str(i)}"
+        #filename = f"{output_dir}/{filename}_{str(i)}"
         if t is not None:
           filename += "_t_" + str(t)
         filename += ".png"

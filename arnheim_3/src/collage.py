@@ -130,7 +130,7 @@ class CollageMaker():
             segmented_data=segmented_data,
             background_image=background_image,
             compositional_image=self._compositional_image)
-        _, _, losses, _ = training.evaluation(
+        _, _, losses, _, _ = training.evaluation(
             t=0,
             clip_enc=self._clip_model,
             generator=generator_search,
