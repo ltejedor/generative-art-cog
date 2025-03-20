@@ -231,6 +231,6 @@ class Predictor(BasePredictor):
         # Run the collage optimization loop
         for step in ct.loop():
             if step % config["trace_every"] == 0:
-                yield Path(output_dir + "optim_" + str(step) + ".png")
+                yield [Path(output_dir + "optim_" + str(step) + ".png"), Path(output_dir + "patch_positions_" + str(step) + ".json")]
 
 

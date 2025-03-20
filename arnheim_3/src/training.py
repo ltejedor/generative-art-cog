@@ -323,8 +323,49 @@ def step_optimization(t, clip_enc, lr_scheduler, generator, augment_trans,
 
   # Backpropagate the gradients.
   loss.backward()
-  torch.nn.utils.clip_grad_norm(generator.parameters(),
+  torch.nn.utils.clip_grad_norm_(generator.parameters(),
                                 config["gradient_clipping"])
+
+  if t % config["trace_every"] == 0 or final_step:
+      output_dir = config["output_dir"]
+      # filename = f"{output_dir}/optim_{t}"
+      # show_and_save(img_np, config,
+      #               max_display=config["max_multiple_visualizations"],
+      #               stitch=True, img_format="SHWC",
+      #               show=config["gui"],
+      #               filename=filename)
+      
+      # Add this block to save patch locations
+      try:
+          # Extract patch locations from the spatial transformer
+          patch_data = []
+          for idx_patch in range(generator._num_patches):
+              # Get patch index (which image from dataset)
+              patch_idx = generator.patch_indices[0][idx_patch]
+              
+              # Get x,y translation values for this patch
+              # These are the learned position parameters
+              x_pos = generator.spatial_transformer.translation[0, idx_patch, 0, 0].item()
+              y_pos = generator.spatial_transformer.translation[0, idx_patch, 1, 0].item()
+              
+              patch_data.append({
+                  "patch_id": int(patch_idx),
+                  "patch_position": idx_patch,
+                  "x": float(x_pos),
+                  "y": float(y_pos),
+                  "rotation": float(generator.spatial_transformer.rotation[0, idx_patch, 0, 0].item()),
+                  "scale": float(generator.spatial_transformer.scale[0, idx_patch, 0, 0].item()),
+              })
+          
+          # Save to JSON file
+          import json
+          with open(f"{output_dir}/patch_positions_{t}.json", 'w') as f:
+              json.dump(patch_data, f, indent=2)
+              
+          print(f"Saved patch positions to {output_dir}/patch_positions_{t}.json")
+      except Exception as e:
+          print(f"Error saving patch positions: {e}")
+            
 
   # Decay the learning rate.
   lr_scheduler.step()
