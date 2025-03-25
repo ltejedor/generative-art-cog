@@ -53,10 +53,68 @@ class PopulationCollage(torch.nn.Module):
     self._pop_size = pop_size
     requires_grad = is_high_res == False
 
-    # Create the spatial transformer and colour transformer for patches.
-    self.spatial_transformer = transformations.PopulationAffineTransforms(
-        config, device, num_patches=self._num_patches, pop_size=pop_size,
-        requires_grad=requires_grad, is_high_res=is_high_res)
+
+    # Optimisation is run in low-res, final rendering is in high-res.
+    self._high_res = is_high_res
+
+    # Store the background image (low- and high-res).
+    self.background_image = background_image
+    if self.background_image is not None:
+      print(f'Background image of size {self.background_image.shape}')
+
+    # Store the dataset (low- and high-res).
+    self._dataset = segmented_data
+    #print(f'There are {len(self._dataset)} image patches in the dataset')
+
+    initial_positions = config["initial_positions"]
+
+    # Handle initial positions
+    if len(initial_positions) > 0:
+        # Extract image indices and positions
+        initial_indices = []
+        positions_x = []
+        positions_y = []
+        
+        for entry in initial_positions:
+            image_idx, x_pos, y_pos = entry
+            
+            initial_indices.append(image_idx)
+            positions_x.append(float(x_pos))
+            positions_y.append(float(y_pos))
+        
+        # Cap at the requested number of patches
+        max_patches = min(len(initial_indices), self._num_patches)
+        initial_indices = initial_indices[:max_patches]
+        positions_x = positions_x[:max_patches]
+        positions_y = positions_y[:max_patches]
+        
+        # If we have fewer initial positions than requested patches, pad with defaults
+        if max_patches < self._num_patches:
+            # Add random indices for remaining patches
+            for i in range(max_patches, self._num_patches):
+                initial_indices.append(np.random.randint(len(self._dataset)))
+                positions_x.append(None)  # None indicates to use random position
+                positions_y.append(None)
+        
+        # Create patch indices array
+        self.patch_indices = []
+        for i in range(pop_size):
+            self.patch_indices.append(np.array(initial_indices) % len(self._dataset))
+
+        # Create the spatial transformer and colour transformer for patches.
+        self.spatial_transformer = transformations.PopulationAffineTransforms(
+            config, device, num_patches=self._num_patches, pop_size=pop_size,
+            requires_grad=requires_grad, is_high_res=is_high_res, positions_x=positions_x, positions_y=positions_y)
+    else:
+        # Default initialization
+        self.patch_indices = [np.arange(self._num_patches) % len(self._dataset) 
+                             for _ in range(pop_size)]
+        
+        self.spatial_transformer = transformations.PopulationAffineTransforms(
+            config, device, num_patches=self._num_patches, pop_size=pop_size,
+            requires_grad=requires_grad, is_high_res=is_high_res)
+    
+
     if self.config['colour_transformations'] == "HSV space":
       self.colour_transformer = transformations.PopulationColourHSVTransforms(
           config, device, num_patches=self._num_patches, pop_size=pop_size,
@@ -73,22 +131,6 @@ class PopulationCollage(torch.nn.Module):
       self.spatial_transformer = self.spatial_transformer.cuda()
       self.colour_transformer = self.colour_transformer.cuda()
     self.coloured_patches = None
-
-    # Optimisation is run in low-res, final rendering is in high-res.
-    self._high_res = is_high_res
-
-    # Store the background image (low- and high-res).
-    self.background_image = background_image
-    if self.background_image is not None:
-      print(f'Background image of size {self.background_image.shape}')
-
-    # Store the dataset (low- and high-res).
-    self._dataset = segmented_data
-    #print(f'There are {len(self._dataset)} image patches in the dataset')
-
-    # Initial set of indices, pointing to the NUM_PATCHES first dataset images.
-    self.patch_indices = [np.arange(self._num_patches) % len(self._dataset)
-                          for _ in range(pop_size)]
 
     # Patches in low and high-res, will be initialised on demand.
     self.patches = None

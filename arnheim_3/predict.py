@@ -12,7 +12,7 @@ import src.video_utils as video_utils
 from PIL import Image
 import torchvision.transforms as transforms
 from typing import List, Union
-
+import re
 
 class Predictor(BasePredictor):
     def setup(self):
@@ -93,13 +93,30 @@ class Predictor(BasePredictor):
             
             # Convert to the format expected by the code
             target_image = target_tensor.to(self.device)
+
+        if len("initial_positions") > 0:
+            converted_positions = []
+            for pos in initial_positions:
+                # pos is expected to be like ["image_9.png", x, y]
+                image_str = pos[0]
+                # Expecting format "image_9.png": remove the prefix and suffix
+                if image_str.startswith("image_") and image_str.endswith(".png"):
+                    index_str = image_str[len("image_"):-len(".png")]
+                    try:
+                        image_index = int(index_str)
+                    except ValueError:
+                        # Optionally log or handle the error; here we skip invalid entries.
+                        continue
+                    # Append the numeric index along with the x and y positions.
+                    converted_positions.append([image_index, pos[1], pos[2]])
+            initial_positions_modified = converted_positions
         
         # Hard-coded configuration values based on config_compositional.yaml,
         # with prompt and optim_steps now provided by the input parameters.
         config = {
             "output_dir": output_dir,
             "loss": loss,
-            "initial_positions": initial_positions,
+            "initial_positions": initial_positions_modified,
             "target_image": target_image,
             "render_method": "transparency",
             "num_patches": num_patches,
