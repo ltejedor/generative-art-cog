@@ -321,8 +321,10 @@ class CollageTiler():
 
     pathlib.Path(self._output_dir).mkdir(parents=True, exist_ok=True)
     self._tile_basename = "tile_y{}_x{}{}"
-    self._tile_width = 448 if self._compositional_image else 224
-    self._tile_height = 448 if self._compositional_image else 224
+    #self._tile_width = 448 if self._compositional_image else 224
+    #self._tile_height = 448 if self._compositional_image else 224
+    self._tile_width = config["canvas_width"]
+    self._tile_height = config["canvas_height"]
     self._overlap = 1. / 3.
 
     # Size of bigger image
