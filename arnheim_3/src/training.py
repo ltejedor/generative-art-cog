@@ -249,9 +249,9 @@ def evaluation(t, clip_enc, generator, augment_trans, text_features,
     losses_individuals_np = losses.detach().cpu().numpy()
     loss = torch.sum(losses) / pop_size
     
-    best_idx = np.argmin(losses_individuals_np)
-    print("best_idx", best_idx)
-    return loss, losses_separate_np, losses_individuals_np, img_np, best_idx
+    #best_idx = np.argmin(losses_individuals_np)
+    #print("best_idx", best_idx)
+    return loss, losses_separate_np, losses_individuals_np, img_np
     
   else:  
 
@@ -286,9 +286,9 @@ def evaluation(t, clip_enc, generator, augment_trans, text_features,
     losses_separate_np = losses.detach().cpu().numpy()
     # Sum losses for all each population individual.
     losses_individuals_np = losses_separate_np.sum(axis=1)
-    best_idx = np.argmin(losses_individuals_np)
-    print("best_idx", best_idx)
-    return loss, losses_separate_np, losses_individuals_np, img_np, best_idx
+    #best_idx = np.argmin(losses_individuals_np)
+    #print("best_idx", best_idx)
+    return loss, losses_separate_np, losses_individuals_np, img_np
 
 
 def step_optimization(t, clip_enc, lr_scheduler, generator, augment_trans,
@@ -321,7 +321,7 @@ def step_optimization(t, clip_enc, lr_scheduler, generator, augment_trans,
 
   # Forward pass.
   lr_scheduler.zero_grad()
-  loss, losses_separate_np, losses_np, img_np, best_idx = evaluation(
+  loss, losses_separate_np, losses_np, img_np = evaluation(
       t=t, clip_enc=clip_enc, generator=generator, augment_trans=augment_trans,
       text_features=text_features, prompts=prompts, config=config,
       device=device)
@@ -330,7 +330,46 @@ def step_optimization(t, clip_enc, lr_scheduler, generator, augment_trans,
   loss.backward()
   torch.nn.utils.clip_grad_norm_(generator.parameters(),
                                 config["gradient_clipping"])
-   
+  if t % config["trace_every"] == 0 or final_step:
+       output_dir = config["output_dir"]
+       # filename = f"{output_dir}/optim_{t}"
+       # show_and_save(img_np, config,
+       #               max_display=config["max_multiple_visualizations"],
+       #               stitch=True, img_format="SHWC",
+       #               show=config["gui"],
+       #               filename=filename)
+       
+       # Add this block to save patch locations
+       try:
+           # Extract patch locations from the spatial transformer
+           patch_data = []
+           for idx_patch in range(generator._num_patches):
+               # Get patch index (which image from dataset)
+               patch_idx = generator.patch_indices[0][idx_patch]
+               
+               # Get x,y translation values for this patch
+               # These are the learned position parameters
+               x_pos = generator.spatial_transformer.translation[0, idx_patch, 0, 0].item()
+               y_pos = generator.spatial_transformer.translation[0, idx_patch, 1, 0].item()
+               
+               patch_data.append({
+                   "patch_id": int(patch_idx),
+                   "patch_position": idx_patch,
+                   "x": float(x_pos),
+                   "y": float(y_pos),
+                   "rotation": float(generator.spatial_transformer.rotation[0, idx_patch, 0, 0].item()),
+                   "scale": float(generator.spatial_transformer.scale[0, idx_patch, 0, 0].item()),
+               })
+           
+           # Save to JSON file
+           import json
+           with open(f"{output_dir}/patch_positions_{t}.json", 'w') as f:
+               json.dump(patch_data, f, indent=2)
+               
+           print(f"Saved patch positions to {output_dir}/patch_positions_{t}.json")
+       except Exception as e:
+           print(f"Error saving patch positions: {e}")
+             
 
   # Decay the learning rate.
   lr_scheduler.step()
@@ -344,48 +383,16 @@ def step_optimization(t, clip_enc, lr_scheduler, generator, augment_trans,
     torch.save(generator.state_dict(), f"{output_dir}/generator.pt")
 
   if t % config["trace_every"] == 0:
-    best_img_np = img_np[best_idx:best_idx+1]
+    #best_img_np = img_np[best_idx:best_idx+1]
 
     output_dir = config["output_dir"]
     filename = f"{output_dir}/optim_{t}"
-    show_and_save(best_img_np, config,
+    show_and_save(img_np, config,
                               max_display=1,
                               stitch=False, img_format="SHWC",
                               show=config["gui"],
                               filename=filename)
 
-    try:
-        # Extract patch locations from the spatial transformer
-        patch_data = []
-        for idx_patch in range(generator._num_patches):
-          # Get patch index for the best member (which image from dataset)
-          patch_idx = generator.patch_indices[best_idx][idx_patch]
-          
-          # Map to your filename convention
-          filename = f"image_{patch_idx}.png"
-          
-          # Get transformation values for this patch from the best member
-          x_pos = generator.spatial_transformer.translation[best_idx, idx_patch, 0, 0].item()
-          y_pos = generator.spatial_transformer.translation[best_idx, idx_patch, 1, 0].item()
-          
-          patch_data.append({
-              "id": idx_patch,
-              "filename": filename,
-              "patch_index": int(patch_idx),
-              "patch_position": idx_patch,
-              "x": float(x_pos),
-              "y": float(y_pos),
-              "rotation": float(generator.spatial_transformer.rotation[best_idx, idx_patch, 0, 0].item()),
-              "scale": float(generator.spatial_transformer.scale[best_idx, idx_patch, 0, 0].item()),
-          })
-        
-        # Save to JSON file
-        with open(f"{output_dir}/patch_positions_{t}.json", 'w') as f:
-            json.dump(patch_data, f, indent=2)
-            
-        print(f"Saved patch positions to {output_dir}/patch_positions_{t}.json")
-    except Exception as e:
-        print(f"Error saving patch positions: {e}")
 
     print("Iteration {:3d}, rendering loss {:.6f}".format(t, loss.item()))
   return losses_np, losses_separate_np, img_np
