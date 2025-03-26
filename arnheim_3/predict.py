@@ -83,8 +83,8 @@ class Predictor(BasePredictor):
             
             # Create a transform that resizes and crops to 224×224
             transform = transforms.Compose([
-                transforms.Resize(256),  # Resize the shorter side to 256
-                transforms.CenterCrop(224),  # Center crop to 224×224
+                transforms.Resize(456),  # Resize the shorter side to 256
+                transforms.CenterCrop(448),  # Center crop to 224×224
                 transforms.ToTensor(),  # Convert to tensor and normalize to [0, 1]
             ])
             
@@ -131,15 +131,15 @@ class Predictor(BasePredictor):
             "background_blue": background_blue,
             "patch_url": patch_url,
             "global_prompt": prompt,  # Use the input value
-            "compositional_image": True,
+            "compositional_image": False,
             "tiles_wide": 1,
             "tiles_high": 1,
             "tile_images": False,
             "torch_device": str(self.device),
             "background_use": "Global",  # Required parameter
             "high_res_multiplier": 4,
-            "canvas_width": 224,
-            "canvas_height": 224,
+            "canvas_width": 448,
+            "canvas_height": 448,
             "gui": False,
             "clean_up": False,
             "video_steps": 0,
