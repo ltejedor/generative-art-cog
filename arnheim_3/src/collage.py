@@ -145,7 +145,7 @@ class CollageMaker():
         del generator_search
       print(f'Initial random search done\n')
 
-    self._optimizer = training.make_optimizer(self._generator,
+    self._optimizer = training.make_optimizer(config, self._generator,
                                               config["learning_rate"])
     self._step = 0
     self._losses_history = []

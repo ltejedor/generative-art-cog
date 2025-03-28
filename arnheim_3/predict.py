@@ -150,7 +150,7 @@ class Predictor(BasePredictor):
             "gradient_clipping": 10.0,
             "initial_search_size": 1,
             "initial_search_num_steps": 1,
-            "pop_size": 2,
+            "pop_size": 1,
             "evolution_frequency": 100,
             "ga_method": "Microbial",
             "pos_and_rot_mutation_scale": 0.02,
@@ -200,15 +200,15 @@ class Predictor(BasePredictor):
             "url_to_patch_file": "",
             
             # Prompts for different regions of the image
-            "prompt_x0_y0": "a photorealistic sky with sun",
-            "prompt_x1_y0": "a photorealistic sky",
-            "prompt_x2_y0": "a photorealistic sky with moon",
-            "prompt_x0_y1": "a photorealistic tree",
-            "prompt_x1_y1": "a photorealistic tree",
-            "prompt_x2_y1": "a photorealistic tree",
-            "prompt_x0_y2": "a photorealistic field",
-            "prompt_x1_y2": "a photorealistic field",
-            "prompt_x2_y2": "a photorealistic chicken"
+            "prompt_x0_y0": "top left ",
+            "prompt_x1_y0": "top of a ",
+            "prompt_x2_y0": "top right ",
+            "prompt_x0_y1": "middle of ",
+            "prompt_x1_y1": "middle of ",
+            "prompt_x2_y1": "middle of ",
+            "prompt_x0_y2": "bottom left ",
+            "prompt_x1_y2": "bottom of a ",
+            "prompt_x2_y2": "bottom right "
         }
         
         # Adjust config for compositional image
