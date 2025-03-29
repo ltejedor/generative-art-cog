@@ -53,6 +53,10 @@ class Predictor(BasePredictor):
             default=250,
             description="Number of optimization steps to run during collage generation."
         ),
+        color_space: str = Input(
+            choices=["RGB space", "HSV space"],
+            default="RGB space"
+        ),
         loss: str = Input(
             choices=["CLIP", "MSE"],
             default="CLIP",
@@ -120,7 +124,7 @@ class Predictor(BasePredictor):
             "target_image": target_image,
             "render_method": "transparency",
             "num_patches": num_patches,
-            "colour_transformations": "RGB space",
+            "colour_transformations": color_space,
             "optim_steps": optim_steps,  # Use the input value
             "learning_rate": 0.1,
             "patch_set": "animals.npy",

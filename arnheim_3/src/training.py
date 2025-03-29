@@ -364,22 +364,47 @@ def step_optimization(t, clip_enc, lr_scheduler, generator, augment_trans,
           # Get transformation values for this patch from the best member
           x_pos = generator.spatial_transformer.translation[0, idx_patch, 0, 0].item()
           y_pos = generator.spatial_transformer.translation[0, idx_patch, 1, 0].item()
-          
-          patch_data.append({
-              "id": idx_patch,
-              "filename": filename,
-              "patch_index": int(patch_idx),
-              "patch_position": idx_patch,
-              "x": float(x_pos),
-              "y": float(y_pos),
-              "rotation": float(generator.spatial_transformer.rotation[0, idx_patch, 0, 0].item()),
-              "scale": float(generator.spatial_transformer.scale[0, idx_patch, 0, 0].item()),
-              "squeeze": float(generator.spatial_transformer.squeeze[0, idx_patch, 0, 0].item()),
-              "shear": float(generator.spatial_transformer.shear[0, idx_patch, 0, 0].item()),
-          })
-          
+
+          if config["colour_transformations"] == "RGB space":
+              # For RGB color transformations
+              patch_data.append({
+                  "id": idx_patch,
+                  "filename": filename,
+                  "patch_index": int(patch_idx),
+                  "patch_position": idx_patch,
+                  "x": float(x_pos),
+                  "y": float(y_pos),
+                  "rotation": float(generator.spatial_transformer.rotation[0, idx_patch, 0, 0].item()),
+                  "scale": float(generator.spatial_transformer.scale[0, idx_patch, 0, 0].item()),
+                  "squeeze": float(generator.spatial_transformer.squeeze[0, idx_patch, 0, 0].item()),
+                  "shear": float(generator.spatial_transformer.shear[0, idx_patch, 0, 0].item()),
+                  # Add RGB color information
+                  "red": float(generator.colour_transformer.reds[0, idx_patch, 0, 0, 0].item()),
+                  "green": float(generator.colour_transformer.greens[0, idx_patch, 0, 0, 0].item()),
+                  "blue": float(generator.colour_transformer.blues[0, idx_patch, 0, 0, 0].item()),
+                  "order": float(generator.colour_transformer.orders[0, idx_patch, 0, 0, 0].item()),
+              })
+          elif config["colour_transformations"] == "HSV space":
+              # For HSV color transformations
+              patch_data.append({
+                  "id": idx_patch,
+                  "filename": filename,
+                  "patch_index": int(patch_idx),
+                  "patch_position": idx_patch,
+                  "x": float(x_pos),
+                  "y": float(y_pos),
+                  "rotation": float(generator.spatial_transformer.rotation[0, idx_patch, 0, 0].item()),
+                  "scale": float(generator.spatial_transformer.scale[0, idx_patch, 0, 0].item()),
+                  "squeeze": float(generator.spatial_transformer.squeeze[0, idx_patch, 0, 0].item()),
+                  "shear": float(generator.spatial_transformer.shear[0, idx_patch, 0, 0].item()),
+                  # Add HSV color information
+                  "hue": float(generator.colour_transformer.hues[0, idx_patch, 0, 0, 0].item()),
+                  "saturation": float(generator.colour_transformer.saturations[0, idx_patch, 0, 0, 0].item()),
+                  "value": float(generator.colour_transformer.values[0, idx_patch, 0, 0, 0].item()),
+                  "order": float(generator.colour_transformer.orders[0, idx_patch, 0, 0, 0].item()),
+              })
+              
           # Save to JSON file
-           
           with open(f"{output_dir}/patch_positions_{t}.json", 'w') as f:
               json.dump(patch_data, f, indent=2)
                
