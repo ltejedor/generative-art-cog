@@ -374,6 +374,8 @@ def step_optimization(t, clip_enc, lr_scheduler, generator, augment_trans,
               "y": float(y_pos),
               "rotation": float(generator.spatial_transformer.rotation[0, idx_patch, 0, 0].item()),
               "scale": float(generator.spatial_transformer.scale[0, idx_patch, 0, 0].item()),
+              "squeeze": float(generator.spatial_transformer.squeeze[0, idx_patch, 0, 0].item()),
+              "shear": float(generator.spatial_transformer.shear[0, idx_patch, 0, 0].item()),
           })
           
           # Save to JSON file
