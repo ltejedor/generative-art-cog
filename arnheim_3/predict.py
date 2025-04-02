@@ -49,6 +49,14 @@ class Predictor(BasePredictor):
             default=[],
             description="List of lists representing the initial positions of patches."
         ),
+        initial_transformations: List[List[Union[str, float]]] = Input(
+            default=[],
+            #description="List of lists representing the initial positions of patches."
+        ),
+        initial_colour_values: List[List[Union[str, float]]] = Input(
+            default=[],
+            #description="List of lists representing the initial positions of patches."
+        ),
         optim_steps: int = Input(
             default=250,
             description="Number of optimization steps to run during collage generation."
@@ -87,8 +95,8 @@ class Predictor(BasePredictor):
             
             # Create a transform that resizes and crops to 224×224
             transform = transforms.Compose([
-                transforms.Resize(456),  # Resize the shorter side to 256
-                transforms.CenterCrop(448),  # Center crop to 224×224
+                transforms.Resize(246),  # Resize the shorter side to 256
+                transforms.CenterCrop(224),  # Center crop to 224×224
                 transforms.ToTensor(),  # Convert to tensor and normalize to [0, 1]
             ])
             
@@ -142,8 +150,8 @@ class Predictor(BasePredictor):
             "torch_device": str(self.device),
             "background_use": "Global",  # Required parameter
             "high_res_multiplier": 4,
-            "canvas_width": 448,
-            "canvas_height": 448,
+            "canvas_width": 224,
+            "canvas_height": 224,
             "gui": False,
             "clean_up": False,
             "video_steps": 0,
