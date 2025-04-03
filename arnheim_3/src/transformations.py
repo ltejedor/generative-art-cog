@@ -368,7 +368,7 @@ class PopulationColourRGBTransforms(torch.nn.Module):
   """RGB color transforms and ordering of patches."""
 
   def __init__(self, config, device, num_patches=1, pop_size=1,
-               requires_grad=True):
+               requires_grad=True, initial_colours=None):
     super(PopulationColourRGBTransforms, self).__init__()
 
     self.config = config
@@ -386,6 +386,26 @@ class PopulationColourRGBTransforms(torch.nn.Module):
         * rgb_init_range) + self.config['initial_min_rgb']
     population_blues = (np.random.rand(pop_size, num_patches, 1, 1, 1)
         * rgb_init_range) + self.config['initial_min_rgb']
+    
+    # Use initial colors if provided
+    if initial_colours is not None and len(initial_colours) > 0:
+        for i, color_data in enumerate(initial_colours):
+            if i >= num_patches:
+                break
+                
+            # Extract color values
+            image_idx, r, g, b = color_data
+
+            
+            if r != "0" and g != "0" and b != "0":
+
+                # Apply to all population members
+                for p in range(pop_size):
+                    population_reds[p, i, 0, 0, 0] = float(r)
+                    population_greens[p, i, 0, 0, 0] = float(g)
+                    population_blues[p, i, 0, 0, 0] = float(b)
+    
+
     population_zeros = np.ones((pop_size, num_patches, 1, 1, 1))
     population_orders = np.random.rand(pop_size, num_patches, 1, 1, 1)
 
