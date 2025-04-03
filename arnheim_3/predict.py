@@ -122,13 +122,35 @@ class Predictor(BasePredictor):
                     # Append the numeric index along with the x and y positions.
                     converted_positions.append([image_index, pos[1], pos[2]])
             initial_positions_modified = converted_positions
-        
+
+
+            # Add this right after your initial_positions processing 
+            if len(initial_colours) > 0:
+                converted_colours = []
+                for color in initial_colours:
+                    # color is expected to be like ["image_9.png", r, g, b]
+                    image_str = color[0]
+                    # Expecting format "image_9.png": remove the prefix and suffix
+                    if image_str.startswith("image_") and image_str.endswith(".png"):
+                        index_str = image_str[len("image_"):-len(".png")]
+                        try:
+                            image_index = int(index_str)
+                        except ValueError:
+                            # Optionally log or handle the error; here we skip invalid entries.
+                            continue
+                        # Append the numeric index along with the color values.
+                        converted_colours.append([image_index, color[1], color[2], color[3]])
+                initial_colours_modified = converted_colours
+            else:
+                initial_colours_modified = []
+
         # Hard-coded configuration values based on config_compositional.yaml,
         # with prompt and optim_steps now provided by the input parameters.
         config = {
             "output_dir": output_dir,
             "loss": loss,
             "initial_positions": initial_positions_modified,
+            "initial_colours": initial_colours_modified,
             "target_image": target_image,
             "render_method": "transparency",
             "num_patches": num_patches,

@@ -120,9 +120,12 @@ class PopulationCollage(torch.nn.Module):
           config, device, num_patches=self._num_patches, pop_size=pop_size,
           requires_grad=requires_grad)
     elif self.config['colour_transformations'] == "RGB space":
+      # self.colour_transformer = transformations.PopulationColourRGBTransforms(
+      #     config, device, num_patches=self._num_patches, pop_size=pop_size,
+      #     requires_grad=requires_grad)
       self.colour_transformer = transformations.PopulationColourRGBTransforms(
-          config, device, num_patches=self._num_patches, pop_size=pop_size,
-          requires_grad=requires_grad)
+              config, device, num_patches=self._num_patches, pop_size=pop_size,
+              requires_grad=requires_grad, initial_colours=self.config["inital_colours"])
     else:
       self.colour_transformer = transformations.PopulationOrderOnlyTransforms(
           config, device, num_patches=self._num_patches, pop_size=pop_size,
