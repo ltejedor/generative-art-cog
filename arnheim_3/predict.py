@@ -53,7 +53,7 @@ class Predictor(BasePredictor):
             default=[],
             #description="List of lists representing the initial positions of patches."
         ),
-        initial_colour_values: List[List[Union[str, float]]] = Input(
+        initial_colours: List[List[Union[str, float]]] = Input(
             default=[],
             #description="List of lists representing the initial positions of patches."
         ),
